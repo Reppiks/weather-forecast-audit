@@ -1,7 +1,9 @@
 import asyncio
+
 import httpx
 import streamlit as st
-from clients.geocoding import get_coordinates_by_zip_code
+
+from clients.geocoding import APIError, get_coordinates_by_zip_code
 
 # Configure page settings
 st.set_page_config(
@@ -28,7 +30,7 @@ def run_async(coro):
 
 
 with col2:
-    st.subheader("1. Enter Location")
+    st.subheader("Enter Location")
 
     with st.form(key="location_form"):
         zip_code = st.text_input(
@@ -49,7 +51,9 @@ with col2:
                     # or pass a clean call to run_async
                     async def fetch():
                         async with httpx.AsyncClient(timeout=10.0) as client:
-                            return await get_coordinates_by_zip_code(client, cleaned_zip)
+                            return await get_coordinates_by_zip_code(
+                                client, cleaned_zip
+                            )
 
                     location = run_async(fetch())
 
@@ -68,7 +72,7 @@ with col2:
 
                     st.table(aliased_json)
 
-                except Exception as e:
+                except (APIError, ValueError) as e:
                     st.error(f"Failed to look up ZIP code: {e}")
         else:
             st.warning("Please enter a valid 5-digit US ZIP code.")
