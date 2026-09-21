@@ -135,3 +135,22 @@ def test_process_comparison_data_missing_hourly_key():
         ValueError, match="Invalid weather payload: missing 'hourly' key."
     ):
         process_comparison_data(invalid_actuals, valid_forecast)
+
+    def test_process_comparison_data_missing_inner_fields():
+        """Verify ValueError is raised if 'hourly' exists but lacks required keys."""
+        invalid_actuals = {
+            "hourly": {
+                "time": ["2026-09-14T00:00"],
+                # missing temperature_2m and precipitation
+            }
+        }
+        valid_forecast = {
+            "hourly": {
+                "time": ["2026-09-14T00:00"],
+                "temperature_2m": [72.1],
+                "precipitation": [0.0],
+            }
+        }
+
+        with pytest.raises(ValueError, match="missing 'hourly' key or required fields"):
+            process_comparison_data(invalid_actuals, valid_forecast)

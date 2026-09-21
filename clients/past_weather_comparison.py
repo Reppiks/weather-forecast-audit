@@ -41,11 +41,24 @@ async def fetch_weather_comparison(
 
 def process_comparison_data(actuals: dict, forecast: dict) -> pd.DataFrame:
     """Merges raw actuals and forecast JSON responses into a single pandas DataFrame."""
-    try:
-        actuals_hourly = actuals["hourly"]
-        forecast_hourly = forecast["hourly"]
-    except KeyError as exc:
-        raise ValueError("Invalid weather payload: missing 'hourly' key.") from exc
+    required_keys = {"time", "temperature_2m", "precipitation"}
+
+    # Validate actuals payload
+    if "hourly" not in actuals or not required_keys.issubset(actuals["hourly"].keys()):
+        raise ValueError(
+            "Invalid weather payload: missing 'hourly' key or required fields."
+        )
+
+    # Validate forecast payload
+    if "hourly" not in forecast or not required_keys.issubset(
+        forecast["hourly"].keys()
+    ):
+        raise ValueError(
+            "Invalid weather payload: missing 'hourly' key or required fields."
+        )
+
+    actuals_hourly = actuals["hourly"]
+    forecast_hourly = forecast["hourly"]
 
     df_actuals = pd.DataFrame(
         {

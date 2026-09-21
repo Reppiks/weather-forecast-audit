@@ -8,10 +8,12 @@
     "httpx",
     "Meteo",
     "MOONPHASE",
+    "precip",
     "pytest",
     "respx",
     "Roboto",
     "Segoe",
-    "streamlit"
+    "streamlit",
+    "testpaths"
   ]
 }

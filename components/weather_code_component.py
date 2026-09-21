@@ -95,7 +95,7 @@ def render_weather_badge(
             padding: {cfg["padding"]};
             color: #e6edf3;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            margin-bottom: 12px;
+            box-sizing: border-box;
         ">
             <span style="font-size: {cfg["emoji_size"]}; flex-shrink: 0; line-height: 1;">{emoji}</span>
             <div style="flex-grow: 1;">

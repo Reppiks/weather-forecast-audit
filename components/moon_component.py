@@ -1,5 +1,7 @@
-# moon_component.py
-import streamlit.components.v1 as components
+import base64
+import math
+
+import streamlit as st
 
 PHASE_NAMES = [
     (0.00, 0.00, "New Moon"),
@@ -37,6 +39,22 @@ def get_phase_name(phase: float) -> str:
     return "New Moon"
 
 
+def _generate_moon_svg(phase: float, size: int) -> str:
+    """Generates a crisp SVG string for the moon phase."""
+    radius = (size // 2) - 2
+    cx = size // 2
+    cy = size // 2
+    cos_p = math.cos(phase * 2 * math.pi)
+    rx = abs(cos_p) * radius
+    sweep = 1 if phase <= 0.5 else 0
+
+    svg = f"""<svg width="{size}" height="{size}" viewBox="0 0 {size} {size}" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="{cx}" cy="{cy}" r="{radius}" fill="#1c2128"/>
+      <path d="M {cx} {cy - radius} A {radius} {radius} 0 0 {sweep} {cx} {cy + radius} A {rx} {radius} 0 0 {1 if cos_p < 0 else 0} {cx} {cy - radius}" fill="#f0f6fc"/>
+    </svg>"""
+    return f"data:image/svg+xml;base64,{base64.b64encode(svg.encode()).decode()}"
+
+
 def render_moon_badge(
     moon_phase_value,
     title: str = "MOONPHASE",
@@ -56,107 +74,55 @@ def render_moon_badge(
 
     size_settings = {
         "small": {
-            "canvas_size": 32,
+            "icon_size": 28,
             "title_size": "11px",
             "label_size": "14px",
             "padding": "12px 16px",
             "gap": "12px",
-            "height": 70,
         },
         "medium": {
-            "canvas_size": 48,
+            "icon_size": 42,
             "title_size": "12px",
             "label_size": "18px",
             "padding": "16px 20px",
             "gap": "16px",
-            "height": 95,
         },
         "large": {
-            "canvas_size": 60,
+            "icon_size": 52,
             "title_size": "13px",
             "label_size": "22px",
             "padding": "18px 24px",
             "gap": "20px",
-            "height": 115,
         },
     }
 
     cfg = size_settings.get(size, size_settings["large"])
+    svg_data = _generate_moon_svg(clean_phase, cfg["icon_size"])
 
     display_type = "flex" if full_width else "inline-flex"
     width_style = "width: 100%; box-sizing: border-box;" if full_width else ""
 
-    canvas_size = cfg["canvas_size"]
-    radius = (canvas_size // 2) - 2
-    cx = canvas_size // 2
-    cy = canvas_size // 2
-
-    html_code = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <style>
-            body {{
-                margin: 0;
-                padding: 0;
-                background: transparent;
-                overflow: hidden;
-            }}
-            .badge-container {{
-                display: {display_type};
-                {width_style}
-                align-items: center;
-                gap: {cfg["gap"]};
-                background-color: #161b22;
-                border: 1px solid #30363d;
-                border-radius: 12px;
-                padding: {cfg["padding"]};
-                color: #e6edf3;
-                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            }}
-        </style>
-    </head>
-    <body>
-        <div class="badge-container">
-            <canvas id="moonCanvas" width="{canvas_size}" height="{canvas_size}" style="flex-shrink: 0;"></canvas>
+    st.markdown(
+        f"""
+        <div style="
+            display: {display_type};
+            {width_style}
+            align-items: center;
+            gap: {cfg["gap"]};
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            padding: {cfg["padding"]};
+            color: #e6edf3;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            box-sizing: border-box;
+        ">
+            <img src="{svg_data}" width="{cfg["icon_size"]}" height="{cfg["icon_size"]}" style="flex-shrink: 0; display: block;" />
             <div style="flex-grow: 1;">
                 <div style="font-size: {cfg["title_size"]}; color: #8b949e; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">{title}</div>
                 <div style="font-size: {cfg["label_size"]}; font-weight: 700; line-height: 1.2;">{phase_name}</div>
             </div>
         </div>
-
-        <script>
-            (function() {{
-                const canvas = document.getElementById('moonCanvas');
-                if (!canvas) return;
-                const ctx = canvas.getContext('2d');
-                const phase = {clean_phase};
-                const radius = {radius};
-                const cx = {cx};
-                const cy = {cy};
-
-                // Base dark sphere
-                ctx.beginPath();
-                ctx.arc(cx, cy, radius, 0, 2 * Math.PI);
-                ctx.fillStyle = '#1c2128';
-                ctx.fill();
-
-                // Illuminated moon surface
-                const cosPhase = Math.cos(phase * 2 * Math.PI);
-                ctx.save();
-                ctx.beginPath();
-                ctx.arc(cx, cy, radius, -Math.PI / 2, Math.PI / 2, phase > 0.5);
-                ctx.ellipse(cx, cy, Math.abs(cosPhase) * radius, radius, 0, Math.PI / 2, -Math.PI / 2, cosPhase < 0);
-                
-                ctx.shadowColor = 'rgba(240, 246, 252, 0.35)';
-                ctx.shadowBlur = 8;
-                ctx.fillStyle = '#f0f6fc';
-                ctx.fill();
-                ctx.restore();
-            }})();
-        </script>
-    </body>
-    </html>
-    """
-
-    components.html(html_code, height=cfg["height"])
+        """,
+        unsafe_allow_html=True,
+    )

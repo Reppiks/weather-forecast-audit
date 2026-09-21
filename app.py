@@ -8,6 +8,11 @@ import streamlit as st
 from clients.base import APIError
 from clients.current_weather import get_current_weather
 from clients.geocoding import get_coordinates_by_zip_code
+from clients.past_weather_comparison import (
+    fetch_weather_comparison,
+    process_comparison_data,
+)
+from components.comparison_chart import create_comparison_chart
 from components.moon_component import render_moon_badge
 from components.weather_code_component import render_weather_badge
 
@@ -34,6 +39,12 @@ async def fetch_location_and_weather(zip_code: str):
             client=client,
         )
         return location, today_metrics
+
+
+async def fetch_comparison_data(lat: float, lon: float):
+    """Asynchronously fetches past weather comparison data using httpx."""
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        return await fetch_weather_comparison(client, lat, lon)
 
 
 def safe_first(data: dict, key: str, default=None):
@@ -63,11 +74,37 @@ def format_time(iso_str: str) -> str:
 
 
 # --- TOP LEVEL LAYOUT ---
-col1, col2 = st.columns([0.8, 0.2])
+col1, col2 = st.columns([0.65, 0.35])
 
 with col1:
     st.title("Weather Analysis Dashboard")
     st.caption("Historical vs. Forecast Weather Data")
+
+    # Only show historical chart if location is in session state
+    if "location" in st.session_state:
+        active_location = st.session_state["location"]
+        target_lat = safe_first(active_location, "latitude")
+        target_lon = safe_first(active_location, "longitude")
+
+        if target_lat is not None and target_lon is not None:
+            try:
+                with st.spinner("Loading historical comparison chart..."):
+                    actuals, forecast = run_async(
+                        fetch_comparison_data(target_lat, target_lon)
+                    )
+
+                    df = process_comparison_data(actuals, forecast)
+
+                    # Render Plotly Chart
+                    fig = create_comparison_chart(df)
+                    st.plotly_chart(fig, width="stretch")
+
+            except (httpx.HTTPError, APIError, ValueError) as exc:
+                st.error(f"Failed to fetch historical comparison data: {exc}")
+    else:
+        st.info(
+            "Please enter a US ZIP code on the right to view historical forecast accuracy analysis."
+        )
 
 with col2:
     st.subheader("Enter Location")
@@ -101,6 +138,7 @@ with col2:
                     # Store results in session state
                     st.session_state["location"] = location
                     st.session_state["weather"] = today_conditions
+                    st.rerun()
 
                 except (APIError, ValueError) as e:
                     st.error(f"Failed to look up location or weather: {e}")
@@ -121,57 +159,79 @@ with col2:
         location_display = f"{city}, {state}".strip(", ") if state else city
 
         st.success(f"Location: **{location_display}**")
-        st.caption(f"Latitude: {lat}  |  Longitude: {lon}")
+        st.caption(f"Lat: {lat} | Lon: {lon}")
 
-        # Current Weather Conditions Widget
-        st.subheader("Current Conditions")
+        # Split col2 internally into two equal sub-columns
+        sub_col1, sub_col2 = st.columns(2)
 
-        temp = safe_first(current_conditions, "temperature_2m")
-        apparent_temp = safe_first(current_conditions, "apparent_temperature")
-        humidity = safe_first(current_conditions, "relative_humidity_2m")
-        wind = safe_first(current_conditions, "wind_speed_10m")
+        # SUB-COLUMN 1: CURRENT CONDITIONS
+        with sub_col1:
+            st.markdown(body="#### Right Now", text_alignment="center")
 
-        current_conditions_table_data = {
-            "Temperature": f"{round(temp)} °F" if temp is not None else "N/A",
-            "Feels Like": (
-                f"{round(apparent_temp)} °F" if apparent_temp is not None else "N/A"
-            ),
-            "Humidity": (f"{round(humidity)} %" if humidity is not None else "N/A"),
-            "Wind Speed": (f"{round(wind, 1)} mph" if wind is not None else "N/A"),
-        }
+            temp = safe_first(current_conditions, "temperature_2m")
+            apparent_temp = safe_first(current_conditions, "apparent_temperature")
+            humidity = safe_first(current_conditions, "relative_humidity_2m")
+            wind = safe_first(current_conditions, "wind_speed_10m")
 
-        st.table(current_conditions_table_data)
+            current_conditions_table_data = {
+                "Metric": ["Temp", "Feels Like", "Humidity", "Wind"],
+                "Value": [
+                    f"{round(temp)} °F" if temp is not None else "N/A",
+                    f"{round(apparent_temp)} °F"
+                    if apparent_temp is not None
+                    else "N/A",
+                    f"{round(humidity)} %" if humidity is not None else "N/A",
+                    f"{round(wind, 1)} mph" if wind is not None else "N/A",
+                ],
+            }
+            st.dataframe(
+                current_conditions_table_data,
+                hide_index=True,
+                width="stretch",
+            )
 
-        weather_code = safe_first(day_conditions, "weather_code", default=0)
-        render_weather_badge(
-            weather_code=weather_code,
-            title="TODAY",
-            size="large",
-            full_width=True,
-        )
+            weather_code = safe_first(day_conditions, "weather_code", default=0)
+            render_weather_badge(
+                weather_code=weather_code,
+                title="CURRENT",
+                size="small",
+                full_width=True,
+            )
 
-        # Daily Forecast Metrics Section
-        high_temp = safe_first(day_conditions, "temperature_2m_max", default=0)
-        low_temp = safe_first(day_conditions, "temperature_2m_min", default=0)
-        sunrise_raw = safe_first(day_conditions, "sunrise", default="")
-        sunset_raw = safe_first(day_conditions, "sunset", default="")
-        moonrise_raw = safe_first(day_conditions, "moonrise", default="")
-        uv_max = safe_first(day_conditions, "uv_index_max", default=0.0)
+        # SUB-COLUMN 2: TODAY'S DAILY FORECAST
+        with sub_col2:
+            st.markdown(body="#### Today's Summary", text_alignment="center")
 
-        day_conditions_table_data = {
-            "High": f"{round(high_temp)}°F",
-            "Low": f"{round(low_temp)}°F",
-            "Sunrise": format_time(sunrise_raw),
-            "Sunset": format_time(sunset_raw),
-            "Moonrise": format_time(moonrise_raw),
-            "Max UV Index": f"{uv_max:.1f}",
-        }
-        st.table(day_conditions_table_data)
+            high_temp = safe_first(day_conditions, "temperature_2m_max", default=0)
+            low_temp = safe_first(day_conditions, "temperature_2m_min", default=0)
+            sunrise_raw = safe_first(day_conditions, "sunrise", default="")
+            sunset_raw = safe_first(day_conditions, "sunset", default="")
+            moonrise_raw = safe_first(day_conditions, "moonrise", default="")
 
-        moon_phase_value = safe_first(day_conditions, "moon_phase", default=0.25)
-        render_moon_badge(
-            moon_phase_value=moon_phase_value,
-            title="MOONPHASE",
-            size="large",
-            full_width=True,
-        )
+            day_conditions_table_data = {
+                "Metric": [
+                    "High / Low",
+                    "Sunrise",
+                    "Sunset",
+                    "Moonrise",
+                ],
+                "Value": [
+                    f"{round(high_temp)}° / {round(low_temp)}°F",
+                    format_time(sunrise_raw),
+                    format_time(sunset_raw),
+                    format_time(moonrise_raw),
+                ],
+            }
+            st.dataframe(
+                day_conditions_table_data,
+                hide_index=True,
+                width="stretch",
+            )
+
+            moon_phase_value = safe_first(day_conditions, "moon_phase", default=0.25)
+            render_moon_badge(
+                moon_phase_value=moon_phase_value,
+                title="MOONPHASE",
+                size="small",
+                full_width=True,
+            )
