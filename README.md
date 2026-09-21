@@ -145,4 +145,3 @@ uv run poe format
 ## 🤝 Contact & Connect
 
 - **LinkedIn**: https://www.linkedin.com/in/alancarrprofile/
-- **Email**: email.reppiks@gmail.com
