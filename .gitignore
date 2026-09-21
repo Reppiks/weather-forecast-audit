@@ -217,5 +217,5 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-notes.txt 
+notes.txt
 todo.txt

@@ -1,12 +1,19 @@
 {
   "cSpell.words": [
+    "actuals",
     "asyncio",
     "coro",
     "dotenv",
+    "generationtime",
     "httpx",
     "Meteo",
+    "MOONPHASE",
+    "precip",
     "pytest",
     "respx",
-    "streamlit"
+    "Roboto",
+    "Segoe",
+    "streamlit",
+    "testpaths"
   ]
 }
