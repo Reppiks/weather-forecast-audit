@@ -1,10 +1,15 @@
 """Tests for clients/past_weather_comparison.py."""
 
 import httpx
+import pandas as pd
 import pytest
 import respx
 
-from clients.past_weather_comparison import BASE_URL, fetch_weather_comparison
+from clients.past_weather_comparison import (
+    BASE_URL,
+    fetch_weather_comparison,
+    process_comparison_data,
+)
 
 
 @pytest.fixture
@@ -59,9 +64,7 @@ async def test_fetch_weather_comparison_success(
     )
 
     # 2. General route for Actuals (matches requests to BASE_URL without models=gem_seamless)
-    respx.get(BASE_URL).respond(
-        status_code=200, json=mock_actuals_payload
-    )
+    respx.get(BASE_URL).respond(status_code=200, json=mock_actuals_payload)
 
     async with httpx.AsyncClient() as client:
         actuals, forecast = await fetch_weather_comparison(
@@ -89,3 +92,46 @@ async def test_fetch_weather_comparison_http_error():
             await fetch_weather_comparison(
                 client=client, latitude=34.0901, longitude=-118.4065
             )
+
+
+"""Tests for data normalization helper in clients/past_weather_comparison.py."""
+
+
+def test_process_comparison_data_success(mock_actuals_payload, mock_forecast_payload):
+    """Verify raw JSON payloads are correctly merged into a clean pandas DataFrame."""
+    df = process_comparison_data(mock_actuals_payload, mock_forecast_payload)
+
+    # Check structure
+    assert isinstance(df, pd.DataFrame)
+    assert len(df) == 2
+    assert list(df.columns) == [
+        "timestamp",
+        "temp_actual",
+        "precip_actual",
+        "temp_forecast",
+        "precip_forecast",
+    ]
+
+    # Check values and types
+    assert pd.api.types.is_datetime64_any_dtype(df["timestamp"])
+    assert df["temp_actual"].tolist() == [70.0, 68.5]
+    assert df["temp_forecast"].tolist() == [72.1, 69.8]
+    assert df["precip_actual"].tolist() == [0.0, 0.0]
+    assert df["precip_forecast"].tolist() == [0.0, 0.01]
+
+
+def test_process_comparison_data_missing_hourly_key():
+    """Verify ValueError is raised if a payload is missing the 'hourly' key."""
+    invalid_actuals = {"latitude": 34.0901, "longitude": -118.4065}
+    valid_forecast = {
+        "hourly": {
+            "time": ["2026-09-14T00:00"],
+            "temperature_2m": [72.1],
+            "precipitation": [0.0],
+        }
+    }
+
+    with pytest.raises(
+        ValueError, match="Invalid weather payload: missing 'hourly' key."
+    ):
+        process_comparison_data(invalid_actuals, valid_forecast)

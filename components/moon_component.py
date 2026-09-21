@@ -1,5 +1,4 @@
 # moon_component.py
-import streamlit as st
 import streamlit.components.v1 as components
 
 PHASE_NAMES = [
@@ -22,7 +21,7 @@ def _normalize_phase(phase) -> float:
         return 0.0
     try:
         return float(phase)
-    except (ValueError, TypeError):
+    except ValueError, TypeError:
         return 0.0
 
 
@@ -107,11 +106,11 @@ def render_moon_badge(
                 display: {display_type};
                 {width_style}
                 align-items: center;
-                gap: {cfg['gap']};
+                gap: {cfg["gap"]};
                 background-color: #161b22;
                 border: 1px solid #30363d;
                 border-radius: 12px;
-                padding: {cfg['padding']};
+                padding: {cfg["padding"]};
                 color: #e6edf3;
                 font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             }}
@@ -121,8 +120,8 @@ def render_moon_badge(
         <div class="badge-container">
             <canvas id="moonCanvas" width="{canvas_size}" height="{canvas_size}" style="flex-shrink: 0;"></canvas>
             <div style="flex-grow: 1;">
-                <div style="font-size: {cfg['title_size']}; color: #8b949e; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">{title}</div>
-                <div style="font-size: {cfg['label_size']}; font-weight: 700; line-height: 1.2;">{phase_name}</div>
+                <div style="font-size: {cfg["title_size"]}; color: #8b949e; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">{title}</div>
+                <div style="font-size: {cfg["label_size"]}; font-weight: 700; line-height: 1.2;">{phase_name}</div>
             </div>
         </div>
 

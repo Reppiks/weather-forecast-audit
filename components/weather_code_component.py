@@ -39,7 +39,7 @@ def _normalize_code(weather_code) -> int:
         return 0
     try:
         return int(weather_code)
-    except (ValueError, TypeError):
+    except ValueError, TypeError:
         return 0
 
 
@@ -88,19 +88,19 @@ def render_weather_badge(
             display: {display_type};
             {width_style}
             align-items: center;
-            gap: {cfg['gap']};
+            gap: {cfg["gap"]};
             background-color: #161b22;
             border: 1px solid #30363d;
             border-radius: 12px;
-            padding: {cfg['padding']};
+            padding: {cfg["padding"]};
             color: #e6edf3;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             margin-bottom: 12px;
         ">
-            <span style="font-size: {cfg['emoji_size']}; flex-shrink: 0; line-height: 1;">{emoji}</span>
+            <span style="font-size: {cfg["emoji_size"]}; flex-shrink: 0; line-height: 1;">{emoji}</span>
             <div style="flex-grow: 1;">
-                <div style="font-size: {cfg['title_size']}; color: #8b949e; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">{title}</div>
-                <div style="font-size: {cfg['label_size']}; font-weight: 700; line-height: 1.2;">{label}</div>
+                <div style="font-size: {cfg["title_size"]}; color: #8b949e; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">{title}</div>
+                <div style="font-size: {cfg["label_size"]}; font-weight: 700; line-height: 1.2;">{label}</div>
             </div>
         </div>
         """,

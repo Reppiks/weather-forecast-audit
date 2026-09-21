@@ -1,6 +1,6 @@
 import asyncio
-from datetime import datetime
 import pprint
+from datetime import datetime
 
 import httpx
 import streamlit as st
@@ -58,7 +58,7 @@ def format_time(iso_str: str) -> str:
     try:
         dt = datetime.fromisoformat(iso_str)
         return dt.strftime("%I:%M %p").lstrip("0")
-    except (ValueError, TypeError):
+    except ValueError, TypeError:
         return "N/A"
 
 
@@ -134,16 +134,10 @@ with col2:
         current_conditions_table_data = {
             "Temperature": f"{round(temp)} °F" if temp is not None else "N/A",
             "Feels Like": (
-                f"{round(apparent_temp)} °F"
-                if apparent_temp is not None
-                else "N/A"
+                f"{round(apparent_temp)} °F" if apparent_temp is not None else "N/A"
             ),
-            "Humidity": (
-                f"{round(humidity)} %" if humidity is not None else "N/A"
-            ),
-            "Wind Speed": (
-                f"{round(wind, 1)} mph" if wind is not None else "N/A"
-            ),
+            "Humidity": (f"{round(humidity)} %" if humidity is not None else "N/A"),
+            "Wind Speed": (f"{round(wind, 1)} mph" if wind is not None else "N/A"),
         }
 
         st.table(current_conditions_table_data)
@@ -174,9 +168,7 @@ with col2:
         }
         st.table(day_conditions_table_data)
 
-        moon_phase_value = safe_first(
-            day_conditions, "moon_phase", default=0.25
-        )
+        moon_phase_value = safe_first(day_conditions, "moon_phase", default=0.25)
         render_moon_badge(
             moon_phase_value=moon_phase_value,
             title="MOONPHASE",

@@ -93,7 +93,8 @@ async def get_current_weather(
 
     if "current" not in data or "daily" not in data:
         raise APIError(
-            "Malformed API response: missing 'current' or 'daily' weather data.")
+            "Malformed API response: missing 'current' or 'daily' weather data."
+        )
 
     return {
         "current": data["current"],
