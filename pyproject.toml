@@ -5,6 +5,7 @@ requires-python = ">=3.14"
 dependencies = [
     "httpx>=0.28.1",
     "plotly>=7.1.0",
+    "poethepoet>=0.48.0",
     "python-dotenv>=1.2.3",
     "requests>=2.34.2",
     "streamlit>=1.64.0",
@@ -16,3 +17,13 @@ dev = [
     "respx>=0.23.1",
     "ruff>=0.16.8",
 ]
+
+[tool.poe.tasks]
+run = "streamlit run app.py"
+lint = "ruff check ."
+fix = "ruff check --fix ."
+format = "ruff format ."
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
