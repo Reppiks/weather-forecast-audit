@@ -74,6 +74,7 @@ async def get_current_weather(
     ]
 
     params = {
+        "timezone": "auto",
         "latitude": latitude,
         "longitude": longitude,
         "current": ",".join(current_variables),

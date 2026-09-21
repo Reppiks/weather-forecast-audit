@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime
 import pprint
 
 import httpx
@@ -7,7 +8,6 @@ import streamlit as st
 from clients.base import APIError
 from clients.current_weather import get_current_weather
 from clients.geocoding import get_coordinates_by_zip_code
-
 from components.moon_component import render_moon_badge
 from components.weather_code_component import render_weather_badge
 
@@ -29,11 +29,37 @@ async def fetch_location_and_weather(zip_code: str):
     async with httpx.AsyncClient(timeout=10.0) as client:
         location = await get_coordinates_by_zip_code(client, zip_code)
         today_metrics = await get_current_weather(
-            latitude=location["latitude"],
-            longitude=location["longitude"],
+            latitude=location.get("latitude", "?"),
+            longitude=location.get("longitude", "?"),
             client=client,
         )
         return location, today_metrics
+
+
+def safe_first(data: dict, key: str, default=None):
+    """Safely extracts the first element if the value is a list or tuple.
+
+    Prevents IndexErrors and TypeErrors if the API returns an empty list or
+    None.
+    """
+    if not isinstance(data, dict):
+        return default
+
+    val = data.get(key)
+    if isinstance(val, (list, tuple)):
+        return val[0] if len(val) > 0 else default
+    return val if val is not None else default
+
+
+def format_time(iso_str: str) -> str:
+    """Converts an ISO timestamp (e.g., '2026-09-21T06:45') to 12-hour time ('6:45 AM')."""
+    if not iso_str or not isinstance(iso_str, str):
+        return "N/A"
+    try:
+        dt = datetime.fromisoformat(iso_str)
+        return dt.strftime("%I:%M %p").lstrip("0")
+    except (ValueError, TypeError):
+        return "N/A"
 
 
 # --- TOP LEVEL LAYOUT ---
@@ -83,35 +109,77 @@ with col2:
 
     # --- RENDER RESULTS IN COLUMN 2 ---
     if "location" in st.session_state and "weather" in st.session_state:
-        location = st.session_state["location"]
+        location = st.session_state.get("location", {})
         current_conditions = st.session_state["weather"].get("current", {})
         day_conditions = st.session_state["weather"].get("daily", {})
 
-        st.success(
-            f"Location: **{location['name']}, {location.get('admin1', '')}**",
+        # Normalize Location Display
+        city = safe_first(location, "name", default="Unknown")
+        state = safe_first(location, "admin1", default="")
+        lat = safe_first(location, "latitude", default="?")
+        lon = safe_first(location, "longitude", default="?")
+        location_display = f"{city}, {state}".strip(", ") if state else city
 
-        )
-        st.caption(
-            f"Latitude: {location["longitude"]}  |  Longitude: {location["longitude"]}")
+        st.success(f"Location: **{location_display}**")
+        st.caption(f"Latitude: {lat}  |  Longitude: {lon}")
 
-        # Current Weather Conditions Widget (Stacked below Location Details in Col 2)
+        # Current Weather Conditions Widget
         st.subheader("Current Conditions")
 
+        temp = safe_first(current_conditions, "temperature_2m")
+        apparent_temp = safe_first(current_conditions, "apparent_temperature")
+        humidity = safe_first(current_conditions, "relative_humidity_2m")
+        wind = safe_first(current_conditions, "wind_speed_10m")
+
         current_conditions_table_data = {
-            "Temperature": f"{current_conditions.get('temperature_2m', 'N/A')} °F",
-            "Feels Like": f"{current_conditions.get('apparent_temperature', 'N/A')} °F",
-            "Humidity": f"{current_conditions.get('relative_humidity_2m', 'N/A')} %",
-            "Wind Speed": f"{current_conditions.get('wind_speed_10m', 'N/A')} mph"
+            "Temperature": f"{round(temp)} °F" if temp is not None else "N/A",
+            "Feels Like": (
+                f"{round(apparent_temp)} °F"
+                if apparent_temp is not None
+                else "N/A"
+            ),
+            "Humidity": (
+                f"{round(humidity)} %" if humidity is not None else "N/A"
+            ),
+            "Wind Speed": (
+                f"{round(wind, 1)} mph" if wind is not None else "N/A"
+            ),
         }
 
         st.table(current_conditions_table_data)
 
-        weather_code = day_conditions.get("weather_code", 0)
-        render_weather_badge(weather_code=weather_code,
-                             size="large", full_width=True)
+        weather_code = safe_first(day_conditions, "weather_code", default=0)
+        render_weather_badge(
+            weather_code=weather_code,
+            title="TODAY",
+            size="large",
+            full_width=True,
+        )
 
-        moon_phase_value = day_conditions.get(
-            "moon_phase", [0.25]
-        )[0]
-        render_moon_badge(moon_phase_value=moon_phase_value,
-                          size="large", full_width=True)
+        # Daily Forecast Metrics Section
+        high_temp = safe_first(day_conditions, "temperature_2m_max", default=0)
+        low_temp = safe_first(day_conditions, "temperature_2m_min", default=0)
+        sunrise_raw = safe_first(day_conditions, "sunrise", default="")
+        sunset_raw = safe_first(day_conditions, "sunset", default="")
+        moonrise_raw = safe_first(day_conditions, "moonrise", default="")
+        uv_max = safe_first(day_conditions, "uv_index_max", default=0.0)
+
+        day_conditions_table_data = {
+            "High": f"{round(high_temp)}°F",
+            "Low": f"{round(low_temp)}°F",
+            "Sunrise": format_time(sunrise_raw),
+            "Sunset": format_time(sunset_raw),
+            "Moonrise": format_time(moonrise_raw),
+            "Max UV Index": f"{uv_max:.1f}",
+        }
+        st.table(day_conditions_table_data)
+
+        moon_phase_value = safe_first(
+            day_conditions, "moon_phase", default=0.25
+        )
+        render_moon_badge(
+            moon_phase_value=moon_phase_value,
+            title="MOONPHASE",
+            size="large",
+            full_width=True,
+        )
