@@ -135,7 +135,7 @@ uv run poe format
 
 ## 💡 Lessons Learned & Future Roadmap
 
-### What I Learned
+### Lessons Learned
 
 - **DOM Alignment in Streamlit**: Resolved height mismatches caused by Streamlit's st.components.v1.html iframe wrapper by moving to raw base64-encoded SVG data strings inside st.markdown(..., unsafe_allow_html=True).
 - **Plotly Bar Grouping Overhead**: Fixed visualization compression issues by moving from grouped bar layouts to barmode="overlay" with explicit opacity layering (0.6 actual vs. 0.4 forecast).
